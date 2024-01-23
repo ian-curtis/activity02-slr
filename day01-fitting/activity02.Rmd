@@ -44,7 +44,8 @@ If you would like to try the *ISLR* labs using these two packages instead of bas
 - Run the `setup` code chunk and/or **knit** <img src="../README-img/knit-icon.png" alt="knit" width = "20"/> icon your Rmd document to verify that no errors occur.
 
 ```{r setup}
-
+library(tidyverse)
+library(tidymodels)
 ```
 
 ![check-in](../README-img/noun-magnifying-glass.png) **Check in**
@@ -65,6 +66,8 @@ After doing this and viewing the loaded data, answer the following questions:
 
 1. What are the dimensions of the dataset?
   What does each row represent?
+  
+  It looks like there are 1458 rows and 123 columns! Each row is a country's data for a particular year regarding human "freedom". 
 
 The dataset spans a lot of years.
 We are only interested in data from year 2016.
@@ -74,7 +77,10 @@ In the R code chunk below titled `hfi-2016`, type the code that does the followi
 - Assigns the result to a data frame named `hfi_2016`.
 
 ```{r hfi-2016}
+hfi <- read_csv("https://www.openintro.org/data/csv/hfi.csv")
 
+hfi_2016 <- hfi %>% 
+  filter(year == 2016)
 ```
 
 ### 1. Identify our research question(s)
@@ -92,32 +98,44 @@ Answer the following questions (use your markdown skills) and complete the follo
 2. What type of plot would you use to display the distribution of the personal freedom scores, `pf_score`? 
   Would this be the same type of plot to display the distribution of the political pressures and controls on media content index, `pf_expression_control`?
 
-
+It would probably be best to use a histogram or boxplot for `pf_score` since we have a continuous variable. However, `pf_expression_control` looks to be somewhat discrete where each value is on a scale of 0.25. We could use a bar chart here.
 
 - In the R code chunk below titled `univariable-plots`, type the R code that displays this plot for `pf_score`.
 - In the R code chunk below titled `univariable-plots`, type the R code that displays this plot for `pf_expression_control`.
 
 ```{r distribution-plots}
+hfi_2016 %>% 
+  ggplot(aes(x = pf_score)) +
+  geom_boxplot()
 
+hfi_2016 %>% 
+  ggplot(aes(x = pf_expression_control)) +
+  geom_bar()
 ```
 
 4. Comment on each of these two distributions. 
   Be sure to describe their centers, spread, shape, and any potential outliers.
 
+It looks like the distribution for `pf_score` is slightly left skewed but is approximately normal. It ranges from just over 2 to about 9.5 and has a median of about 7. The box plot does show 2 outliers on the left side of the plot.
 
+The distribution for `pf_expression_control` is roughly normal and there doesn't seem to be any outliers to be concerned about. It ranges from just over 0 to a little under 10 and is centered around 5.
 
 3. What type of plot would you use to display the relationship between the personal freedom score, `pf_score`, and the political pressures and controls on media content index,`pf_expression_control`?
 
-
+Would could use a scatter plot; however, I have a little concerns because `pf_expression_control` is not technically continuous.
 
 - In the R code chunk below titled `relationship-plot`, plot this relationship using the variable `pf_expression_control` as the predictor/explanatory variable.
 
 ```{r relationship-plot}
-
+hfi_2016 %>% 
+  ggplot(aes(x = pf_expression_control, y = pf_score)) +
+  geom_point()
 ```
 
 4. Does the relationship look linear?
   If you knew a country's `pf_expression_control`, or its score out of 10, with 0 being the most, of political pressures and controls on media content, would you be comfortable using a linear model to predict the personal freedom score?
+  
+  I could see using a slight curve to predict `pf_score`. However, the data does have a linear trend and I would be comfortable using a linear model.
 
 #### Challenge
 
@@ -130,8 +148,18 @@ What numerical summary would you use to describe the relationship between two nu
 (hint: explore the `cor` function from Base R)
 
 ```{r challenge}
-
+hfi_2016 %>% 
+  select(pf_score, pf_expression_control) %>% 
+  summarise(mean_score = mean(pf_score), 
+            md_score = median(pf_score), 
+            sd_score = sd(pf_score), 
+            mean_exp = mean(pf_expression_control), 
+            md_exp = median(pf_expression_control), 
+            sd_exp = sd(pf_expression_control),
+            corr = cor(pf_score, pf_expression_control))
 ```
+
+I see that the means and medians for both variables are closer than I originally thought. There also appears to be a decently strong correlation between the two variables.
 
 
 ### 3. Fit a simple linear regression model
@@ -144,7 +172,7 @@ To begin, we will create a `{parsnip}` specification for a linear model.
 
 - In the code chunk below titled `parsnip-spec`, replace "verbatim" with "r" just before the code chunk title.
 
-```{verbatim parsnip-spec}
+```{r parsnip-spec}
 lm_spec <- linear_reg() %>%
   set_mode("regression") %>%
   set_engine("lm")
@@ -159,14 +187,14 @@ Remember that you can type `?function_name` in the R **Console** to explore a fu
 The above code also outputs the `lm_spec` output.
 This code does not do any calculations by itself, but rather specifies what we plan to do.
 
-Using this specification, we can now fit our model: $\texttt{pf\score} = \beta_0 + \beta_1 \times \texttt{pf\_expression\_control} + \varepsilon$.
-Note, the "$" portion in the previous sentence is LaTeX snytex which is a math scripting (and other scripting) language.
+Using this specification, we can now fit our model: $\texttt{pf_score} = \beta_0 + \beta_1 \times \texttt{pf_expression_control} + \varepsilon$.
+Note, the "$" portion in the previous sentence is LaTeX syntax which is a math scripting (and other scripting) language.
 I do not expect you to know this, but you will become more comfortable with this.
 Look at your knitted document to see how this syntax appears.
 
 - In the code chunk below titled `fit-lm`, replace "verbatim" with "r" just before the code chunk title. 
 
-```{verbatim fit-lm}
+```{r fit-lm}
 slr_mod <- lm_spec %>% 
   fit(pf_score ~ pf_expression_control, data = hfi_2016)
 
@@ -178,11 +206,14 @@ The above code fits our SLR model, then provides a `tidy` parameter estimates ta
 5. Using the `tidy` output, update the below formula with the estimated parameters.
   That is, replace "intercept" and "slope" with the appropriate values
 
-$\hat{\texttt{pf\score}} = intercept + slope \times \texttt{pf\_expression\_control}$
+$\hat{\texttt{pf_score}} = 4.28 + 0.542 \times \texttt{pf_expression_control}$
 
 
 6. Interpret each of the estimated parameters from (5) in the context of this research question.
   That is, what do these values represent?
+  
+  Intercept: If a country has a `pf_expression_control` value of 0 in 2016, would would predict their `pf_score` to be 4.28. 
+  Slope: For every increase of 1 unit of `pf_expression_control`, we would expect that country's corresponding `pf_score` to increase by 0.542.
 
 ## Day 2
 
@@ -201,7 +232,7 @@ We use `glance` from  `{broom}` (which is automatically loaded with `{tidymodels
 
 - In the code chunk below titled `glance-lm`, replace "verbatim" with "r" just before the code chunk title. 
 
-```{verbatim glance-mod}
+```{r glance-mod}
 glance(slr_mod)
 ```
 
@@ -321,7 +352,7 @@ Answer the following question:
 
 - In the code chunk below titled `residual-histogram`, replace "verbatim" with "r" just before the code chunk title. 
  
-```{verbatim fitted-residual}
+```{verbatim residual-histogram}
 ggplot(data = train_aug, aes(x = .resid)) +
   geom_histogram(binwidth = 0.25) +
   xlab("Residuals")
