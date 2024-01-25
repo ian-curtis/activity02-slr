@@ -240,13 +240,13 @@ After doing this and running the code, answer the following questions:
 
 7. What is the value of $R^2$ for this model?
 
-
+0.714
 
 8. What does this value mean in the context of this model?
   Think about what would a "good" value of $R^2$ would be?
   Can/should this value be "perfect"?
 
-
+We have explained 71.4% of the variance in `pf_score` using `pf_expression_control`. This is a pretty nice result as we are only using one variable. In theory, we could get a value of 1 for $R^2$ but I don't think this is possible. There will always be some error.
 
 #### 4.B: Assess with test/train
 
@@ -263,11 +263,21 @@ Using the `diamonds` example provided to you in the Day 2 `README`, do the follo
 
 Now, you will use your training dataset to fit a SLR model.
 
+```{r train-test}
+set.seed(523)
+
+hfi_split <- initial_split(hfi_2016, prop = .8)
+
+train <- training(hfi_split)
+test <- testing(hfi_split)
+```
+
+
 - In the code chunk below titled `train-fit-lm`, replace "verbatim" with "r" just before the code chunk title and update the data set to your training R object you just created.
 
-```{verbatim train-fit-lm}
+```{r train-fit-lm}
 slr_train <- lm_spec %>% 
-  fit(pf_score ~ pf_expression_control, data = hfi_2016)
+  fit(pf_score ~ pf_expression_control, data = train)
 
 tidy(slr_train)
 ```
@@ -277,19 +287,21 @@ Notice that you can reuse the `lm_spec` specification because we are still doing
 9. Using the `tidy` output, update the below formula with the estimated parameters.
   That is, replace "intercept" and "slope" with the appropriate values
 
-$\hat{\texttt{pf\score}} = intercept + slope \times \texttt{pf\_expression\_control}$
+$\hat{\texttt{pf_score}} = 4.29 + 0.528 \times \texttt{pf_expression_control}$
 
 
 10. Interpret each of the estimated parameters from (10) in the context of this research question.
   That is, what do these values represent?
 
+  Intercept: If a country has a `pf_expression_control` value of 0 in 2016, would would predict their `pf_score` to be 4.29. 
+  Slope: For every increase of 1 unit of `pf_expression_control`, we would expect that country's corresponding `pf_score` to increase by 0.548.
 
 Now we will assess using the testing data set.
 
-- In the code chunk below titled `train-fit-lm`, replace "verbatim" with "r" just before the code chunk title and update `data_test` to whatever R object you assigned your testing data to above.
+- In the code chunk below titled `train-fit-lm`, replace "verbatim" with "r" just before the code chunk title and update `data_train` to whatever R object you assigned your testing data to above.
   
-```{verbatim glance-test}
-test_aug <- augment(slr_train, new_data = data_test)
+```{r glance-test}
+test_aug <- augment(slr_train, new_data = train)
 test_aug
 ```
 
@@ -301,7 +313,7 @@ This takes your SLR model and applies it to your testing data.
 Look at the various information produced by this code.
 Can you identify what each column represents?
 
-The `.fitted` column in this output can also be obtained by using `predict` (i.e., `predict(slr_fit, new_data = data_test)`)
+The `.pred` column in this output can also be obtained by using `predict` (i.e., `predict(slr_fit, new_data = data_test)`)
 
 11. Now, using your responses to (7) and (8) as an example, assess how well your model fits your testing data.
   Compare your results here to your results from your Day 1 of this activity.
@@ -319,8 +331,8 @@ We can use `broom::augment` to calculate these.
 
 - In the code chunk below titled `augment`, replace "verbatim" with "r" just before the code chunk title and update `data_test` to whatever R object you assigned your testing data to above. 
   
-```{verbatim augment}
-train_aug <- augment(slr_train)
+```{r augment}
+train_aug <- augment(slr_train, new_data = test)
 
 train_aug
 ```
@@ -332,7 +344,7 @@ We should also verify this condition with a plot of the residuals vs. fitted (pr
 - In the code chunk below titled `fitted-residual`, replace "verbatim" with "r" just before the code chunk title. 
   
 ```{verbatim fitted-residual}
-ggplot(data = train_aug, aes(x = .fitted, y = .resid)) +
+ggplot(data = train_aug, aes(x = .pred, y = .resid)) +
   geom_point() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
   xlab("Fitted values") +
@@ -347,12 +359,14 @@ Answer the following question:
 
 11. Is there any apparent pattern in the residuals plot?
   What does this indicate about the linearity of the relationship between the two variables?
+  
+  There doesn't seem to be a pattern. We have a mostly random scatter which indicates that there we can assume linearity of the variables.
 
 **Nearly normal residuals**: To check this condition, we can look at a histogram of the residuals.
 
 - In the code chunk below titled `residual-histogram`, replace "verbatim" with "r" just before the code chunk title. 
  
-```{verbatim residual-histogram}
+```{r residual-histogram}
 ggplot(data = train_aug, aes(x = .resid)) +
   geom_histogram(binwidth = 0.25) +
   xlab("Residuals")
@@ -362,6 +376,8 @@ Answer the following question:
 
 12. Based on the histogram, does the nearly normal residuals condition appear to be violated?
   Why or why not?
+  
+  I don't think so. The residuals are roughly normally distributed with equal-length tails. It's iffy becuase I could also argue that it's slightly left skewed.
 
 
 **Constant variability**:
@@ -369,7 +385,7 @@ Answer the following question:
 13. Based on the residuals vs. fitted plot, does the constant variability condition appear to be violated?
   Why or why not?
 
-
+ No, I don't think so, but there might be perhaps slightly less variation towards the higher end of the fitted values. I still think we are ok here.
 
 ## Attribution
 
